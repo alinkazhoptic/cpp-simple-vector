@@ -1,5 +1,3 @@
-// вставьте сюда ваш код для класса SimpleVector
-// внесите необходимые изменения для поддержки move-семантики
 /*
 Урок 11. Разработка контейнера SimpleVector часть 2 
 Задание
@@ -81,7 +79,6 @@ public:
     explicit SimpleVector(size_t size) {
         // Для нулевого вектора память не выделяется
         if (size == 0) {
-            SimpleVector();
             return;
         }
 
@@ -97,7 +94,6 @@ public:
     SimpleVector(size_t size, const Type& value) {
         // Для нулевого вектора память не выделяется
         if (size == 0) {
-            SimpleVector();
             return;
         }
         // выделяем память заданного размера и заполняем значениями по умолчанию (это делается внутри конструктора ArrayPtr)
@@ -149,7 +145,9 @@ public:
 
         // Создаем умный указатель из указателя на перемещаемый массив 
         // При этом указатель у перемещаемого массива после Release будет nullptr
-        ArrayPtr<Type> array_ptr_copy(other.array_ptr_.Release()); 
+        // ArrayPtr<Type> array_ptr_copy(other.array_ptr_.Release()); 
+        ArrayPtr<Type> array_ptr_copy;
+        array_ptr_copy.swap(other.array_ptr_);
         
         // Обнуляем параметры перемещенного вектора
         other.size_ = 0;
@@ -207,6 +205,7 @@ public:
     // Возвращает ссылку на элемент с индексом index, 
     // index не должен выходить за пределы вектора
     Type& operator[](size_t index) noexcept {
+        assert(index < size_);
         Type* ptr = &array_ptr_[index];
         return *ptr;
     }
@@ -214,6 +213,7 @@ public:
     // Возвращает константную ссылку на элемент с индексом index, 
     // index не должен выходить за пределы вектора
     const Type& operator[](size_t index) const noexcept {
+        assert(index < size_);
         const Type* ptr_const = &array_ptr_[index];
         return *ptr_const;
     }
@@ -257,9 +257,8 @@ public:
             size_ = new_size;
             
             // Заполняем дефолтными значениями
-            Type v_default{};
             for (auto it = it_begin_extra; it != this->end(); it++) {
-                *it = std::move(v_default);
+                *it = std::move(Type{});
             }
             
             return;
@@ -290,27 +289,18 @@ public:
     // Возвращает итератор на начало массива
     // Для пустого массива может быть равен (или не равен) nullptr
     Iterator begin() noexcept {
-        if (IsEmpty()) {
-            return nullptr;
-        }
         return array_ptr_.Get();
     }
 
     // Возвращает итератор на элемент, следующий за последним
     // Для пустого массива может быть равен (или не равен) nullptr
     Iterator end() noexcept {
-        if (IsEmpty()) {
-            return nullptr;
-        }
         return std::next(array_ptr_.Get(), static_cast<int>(size_)); // может быть, надо сдвинуть на (size_ + 1)
     }
 
     // Возвращает константный итератор на начало массива
     // Для пустого массива может быть равен (или не равен) nullptr
     ConstIterator begin() const noexcept {
-        if (IsEmpty()) {
-            return nullptr;
-        }
         return const_cast<const Type*>(array_ptr_.Get());
 
     }
@@ -318,32 +308,26 @@ public:
     // Возвращает итератор на элемент, следующий за последним
     // Для пустого массива может быть равен (или не равен) nullptr
     ConstIterator end() const noexcept {
-        if (IsEmpty()) {
-            return nullptr;
-        }
         return const_cast<Type*>(std::next(begin(), static_cast<int>(size_)));
     }
 
     // Возвращает константный итератор на начало массива
     // Для пустого массива может быть равен (или не равен) nullptr
     ConstIterator cbegin() const noexcept {
-        if (IsEmpty()) {
-            return nullptr;
-        }
         return const_cast<Type*>(array_ptr_.Get());
     }
 
     // Возвращает итератор на элемент, следующий за последним
     // Для пустого массива может быть равен (или не равен) nullptr
     ConstIterator cend() const noexcept {
-        if (IsEmpty()) {
-            return nullptr;
-        }
         return const_cast<Type*>(std::next(cbegin(), size_));
     }
 
     // Присваивание
     SimpleVector& operator=(const SimpleVector& rhs) {
+        if (this == &rhs) {
+            throw std::invalid_argument("You can't assign the same object");
+        }
         // Выделяем память под вектор-копию
         ArrayPtr<Type> array_ptr_copy(rhs.GetSize()); 
         // Копируем в буфер
@@ -359,6 +343,9 @@ public:
     // Оператор перемещения
     SimpleVector& operator=(SimpleVector&& rhs)
     {
+        if (this == &rhs) {
+            throw std::invalid_argument("You can't assign the same object");
+        }
         // Определеяем новые параметры
         size_t capacity_new = rhs.GetCapacity();
         size_t size_new = rhs.GetSize();
@@ -423,7 +410,6 @@ public:
             // 2. Копируем элементы исходного массива
             std::move(begin(), end(), array_ptr_copy.Get());
             // 3. Добавляем новый элемент в конец
-            // std::exchange(array_ptr_copy[size_], item);
             array_ptr_copy[size_] = std::move(item);
             item = Type{};
             // 4. Меняем местами копию и текущий экземпляр
@@ -443,6 +429,7 @@ public:
     // Если перед вставкой значения вектор был заполнен полностью,
     // вместимость вектора должна увеличиться вдвое, а для вектора вместимостью 0 стать равной 1
     Iterator Insert(ConstIterator pos, const Type& value) {
+        assert((pos >= begin()) && (pos <= end()));
         // Вычисляем номер позиции, куда будем вставлять
         Iterator pos_var = const_cast<Iterator>(pos);
         size_t position_num = static_cast<size_t>( std::distance(begin(), pos_var) );
@@ -461,8 +448,7 @@ public:
             // 1. Выделяем новую память вдвое бОльшую
             ArrayPtr<Type> array_ptr_copy(new_capacity);
             // и заполняем её дефолтными значениями
-            Type v_default{};
-            std::fill(array_ptr_copy.Get(), std::next(array_ptr_copy.Get(), static_cast<int>(new_capacity)), v_default);            
+            std::fill(array_ptr_copy.Get(), std::next(array_ptr_copy.Get(), static_cast<int>(new_capacity)), Type{});            
             // 2. Копируем элементы исходного массива
             std::copy(begin(), pos_var, array_ptr_copy.Get());
             // 3. Добавляем новый элемент
@@ -487,6 +473,7 @@ public:
     // Если перед вставкой значения вектор был заполнен полностью,
     // вместимость вектора должна увеличиться вдвое, а для вектора вместимостью 0 стать равной 1
     Iterator Insert(ConstIterator pos, Type&& value) {
+        assert((pos >= begin()) && (pos <= end()));
         // Вычисляем номер позиции, куда будем вставлять
         Iterator pos_var = const_cast<Iterator>(pos);
         size_t position_num = static_cast<size_t>( std::distance(begin(), pos_var) );
@@ -504,11 +491,12 @@ public:
 
             // 1. Выделяем новую память вдвое бОльшую
             ArrayPtr<Type> array_ptr_copy(new_capacity);
-            /*
+
             // и заполняем её дефолтными значениями
-            Type v_default{};
-            std::fill(array_ptr_copy.Get(), std::next(array_ptr_copy.Get(), static_cast<int>(new_capacity)), v_default);  
-            */          
+            for(size_t i = 0; i < new_capacity; i++) {
+                array_ptr_copy[i] = std::move(Type{});
+            }
+
             // 2. Копируем элементы исходного массива
             std::move(begin(), pos_var, array_ptr_copy.Get());
             // 3. Добавляем новый элемент
@@ -532,11 +520,13 @@ public:
 
     // "Удаляет" последний элемент вектора. Вектор не должен быть пустым
     void PopBack() noexcept {
+        assert(size_ != 0);
         --size_;
     }
 
     // Удаляет элемент вектора в указанной позиции
     Iterator Erase(ConstIterator pos) {
+        assert((pos >= begin()) && (pos < end()));
         Iterator pos_var = const_cast<Iterator>(pos);
         int position_num = static_cast<int>(std::distance(begin(), pos_var));
         // Перезапись элементов, начиная со следующей позиции
@@ -557,14 +547,11 @@ public:
         array_ptr_.swap(other.array_ptr_);
 
         // Обмен размерами
-        size_t size_other = other.GetSize();
-        other.size_ = size_;
-        size_ = size_other;
-
+        std::swap(size_, other.size_);
+        
         // Обмен вместимостями
-        size_t capacity_other = other.GetCapacity();
-        other.capacity_ = capacity_;
-        capacity_ = capacity_other;
+        std::swap(capacity_, other.capacity_); 
+        
     }
 
 private:
@@ -592,7 +579,7 @@ inline bool operator<(const SimpleVector<Type>& lhs, const SimpleVector<Type>& r
 
 template <typename Type>
 inline bool operator<=(const SimpleVector<Type>& lhs, const SimpleVector<Type>& rhs) {
-    return (lhs == rhs) || (lhs < rhs) ;
+    return !(rhs < lhs) ;
 }
 
 template <typename Type>
@@ -604,7 +591,6 @@ template <typename Type>
 inline bool operator>=(const SimpleVector<Type>& lhs, const SimpleVector<Type>& rhs) {
     return !(lhs < rhs);
 } 
-
 
 
 

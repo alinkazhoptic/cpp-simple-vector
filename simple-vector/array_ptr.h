@@ -1,6 +1,3 @@
-// вставьте сюда ваш код для класса ArrayPtr
-// внесите в него изменения, 
-// которые позволят реализовать move-семантику
 #pragma once
 
 /*
@@ -23,6 +20,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <iostream>
+#include <iterator>
 #include <utility>
 
 template <typename Type>
@@ -50,6 +48,11 @@ public:
     // Запрещаем копирование
     ArrayPtr(const ArrayPtr&) = delete;
 
+    // Разрешаем перемещение
+    ArrayPtr(ArrayPtr&& other) {
+        std::exchange(raw_ptr_, other.raw_ptr_);
+    }
+
     ~ArrayPtr() {
         delete[] raw_ptr_;
         raw_ptr_ = nullptr;
@@ -57,6 +60,15 @@ public:
 
     // Запрещаем присваивание
     ArrayPtr& operator=(const ArrayPtr&) = delete;
+
+    // Разрешаем перемещение
+    ArrayPtr& operator=(ArrayPtr&& other) {
+        if (this->raw_ptr_ == other.raw_ptr_) {
+            throw std::invalid_argument("You can't assign the same object");
+        }
+        std::exchange(raw_ptr_, other.raw_ptr_);
+        return *this;
+    }
 
 
 
@@ -91,14 +103,11 @@ public:
 
     // Обменивается значениям указателя на массив с объектом other
     void swap(ArrayPtr& other) noexcept {
-        Type* ptr_tmp = raw_ptr_;
-        raw_ptr_ = other.Get();
-        other.raw_ptr_= ptr_tmp;
+        std::swap(raw_ptr_, other.raw_ptr_);
     }
 
 private:
     Type* raw_ptr_ = nullptr;
 };
-
 
 

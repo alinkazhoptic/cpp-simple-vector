@@ -258,7 +258,7 @@ public:
             
             // Заполняем дефолтными значениями
             for (auto it = it_begin_extra; it != this->end(); it++) {
-                *it = std::move(Type{});
+                *it = Type{};
             }
             
             return;
@@ -326,7 +326,7 @@ public:
     // Присваивание
     SimpleVector& operator=(const SimpleVector& rhs) {
         if (this == &rhs) {
-            throw std::invalid_argument("You can't assign the same object");
+            return *this;
         }
         // Выделяем память под вектор-копию
         ArrayPtr<Type> array_ptr_copy(rhs.GetSize()); 
@@ -344,7 +344,7 @@ public:
     SimpleVector& operator=(SimpleVector&& rhs)
     {
         if (this == &rhs) {
-            throw std::invalid_argument("You can't assign the same object");
+            return *this;
         }
         // Определеяем новые параметры
         size_t capacity_new = rhs.GetCapacity();
@@ -494,7 +494,7 @@ public:
 
             // и заполняем её дефолтными значениями
             for(size_t i = 0; i < new_capacity; i++) {
-                array_ptr_copy[i] = std::move(Type{});
+                array_ptr_copy[i] = Type{};
             }
 
             // 2. Копируем элементы исходного массива

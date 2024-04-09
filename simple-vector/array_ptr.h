@@ -50,7 +50,7 @@ public:
 
     // Разрешаем перемещение
     ArrayPtr(ArrayPtr&& other) {
-        std::exchange(raw_ptr_, other.raw_ptr_);
+        raw_ptr_ = std::exchange(other.raw_ptr_, nullptr);
     }
 
     ~ArrayPtr() {
@@ -63,10 +63,7 @@ public:
 
     // Разрешаем перемещение
     ArrayPtr& operator=(ArrayPtr&& other) {
-        if (this->raw_ptr_ == other.raw_ptr_) {
-            throw std::invalid_argument("You can't assign the same object");
-        }
-        std::exchange(raw_ptr_, other.raw_ptr_);
+        raw_ptr_ = std::exchange(other.raw_ptr_, nullptr);
         return *this;
     }
 

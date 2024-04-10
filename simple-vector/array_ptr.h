@@ -63,6 +63,7 @@ public:
 
     // Разрешаем перемещение
     ArrayPtr& operator=(ArrayPtr&& other) {
+        delete[] raw_ptr_;
         raw_ptr_ = std::exchange(other.raw_ptr_, nullptr);
         return *this;
     }
